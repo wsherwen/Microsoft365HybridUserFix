@@ -22,9 +22,13 @@ Run the script: .\Microsoft365RemoteMailboxFix.ps1
 3. User Input:
 
 Exchange Server FQDN: Fully qualified domain name of your on-premises Exchange server.
+
 Remote Routing Domain: The routing domain associated with your Microsoft 365 tenant.
+
 Microsoft 365 UPN: User Principal Name of the user in Microsoft 365.
+
 Active Directory User Account UPN: User Principal Name of the user account in Active Directory.
+
 Shared Mailbox (yes/no): Specify whether the mailbox is for a single user or a shared mailbox.
 
 4. Logging and Output:
