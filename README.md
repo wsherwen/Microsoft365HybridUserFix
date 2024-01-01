@@ -14,9 +14,11 @@ Module dependency check: Confirms the necessary PowerShell modules are installed
 
 Install the Exchange Online Management module: Install-Module -Name ExchangeOnlineManagement
 Ensure sufficient permissions to connect to both Microsoft 365 and on-premises Exchange.
+
 2. Script Execution:
 
 Run the script: .\Microsoft365RemoteMailboxFix.ps1
+
 3. User Input:
 
 Exchange Server FQDN: Fully qualified domain name of your on-premises Exchange server.
@@ -24,6 +26,7 @@ Remote Routing Domain: The routing domain associated with your Microsoft 365 ten
 Microsoft 365 UPN: User Principal Name of the user in Microsoft 365.
 Active Directory User Account UPN: User Principal Name of the user account in Active Directory.
 Shared Mailbox (yes/no): Specify whether the mailbox is for a single user or a shared mailbox.
+
 4. Logging and Output:
 
 The script creates a log file (%windir%\Temp\Logs\Microsoft365RemoteMailboxFix.log) containing detailed information about its execution, including any errors or warnings.
