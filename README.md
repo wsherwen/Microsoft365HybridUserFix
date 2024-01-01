@@ -1,4 +1,4 @@
-This detailed readme provides comprehensive information about the Microsoft 365 Remote Mailbox Fix Script, a PowerShell script that automates remote mailbox creation in a hybrid Exchange environment.
+**Microsoft 365 Remote Mailbox Fix Script**, a PowerShell script that automates remote mailbox creation in a hybrid Exchange environment
 
 ## Functionality:
 
