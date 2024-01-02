@@ -44,14 +44,14 @@ $HybridServer = Read-Host -Prompt 'Enter Exchange Servers FQDN'
 LogWrite "$(Get-TimeStamp): User entered: $HybridServer."
 
 LogWrite "$(Get-TimeStamp): Collecting the remote routing address."
-$RoutingDomain = Read-Host -Prompt 'Enter the Remote Routing Domain for your Microsoft 365 tenant.'
+$RoutingDomain = Read-Host -Prompt 'Enter the Remote Routing Domain for your Microsoft 365 tenant'
 LogWrite "$(Get-TimeStamp): User entered: $RoutingDomain."
 
 LogWrite "$(Get-TimeStamp): Collecting the Microsoft 365 UPN."
-$Microsoft365Users = Read-Host -Prompt 'Enter the Micrsoft 365 Users UPN'
+$Microsoft365Users = Read-Host -Prompt 'Enter the Micrsoft 365 Users Primary Mail Address'
 LogWrite "$(Get-TimeStamp): User entered: $Microsoft365Users."
 
-LogWrite "$(Get-TimeStamp): Collecting the Active Directory User Account UPN."
+LogWrite "$(Get-TimeStamp): Collecting the Active Directory User Account UPN"
 $ADUserUPN = Read-Host -Prompt 'Enter the Active Directory Users UPN'
 LogWrite "$(Get-TimeStamp): User entered: $ADUserUPN."
 
@@ -73,13 +73,51 @@ LogWrite "$(Get-TimeStamp): Parameter data collected."
 
 #Connection to MS365
 LogWrite "$(Get-TimeStamp): Upfront connection to MS365 Exchange Online Managment."
-Connect-ExchangeOnline  -Credential $(Get-Credential)
+Connect-ExchangeOnline
 Import-Module ExchangeOnlineManagement
+
+LogWrite "$(Get-TimeStamp): Collecting data from Microsoft365."
+$ValidateMailbox = Get-Mailbox -Identity $Microsoft365Users -ErrorAction SilentlyContinue
+
+$retryLimit = 3
+$retryCount = 0
+
+LogWrite "$(Get-TimeStamp): Valadting the mailbox exists in MS365."
+if ($ValidateMailbox.PrimarySmtpAddress -ne $Microsoft365Users) {
+    do {
+        if ($retryCount -gt 0) {
+            LogWrite "$(Get-TimeStamp): The mailbox address supplied was invalid."
+            Write-Host "The mailbox entered was invalid, request to retry being captured."
+        }
+
+        LogWrite "$(Get-TimeStamp): Requesting email address is retyped."
+        $Microsoft365Users = Read-Host "Retype the Microsoft365 Users Email Address"
+        LogWrite "$(Get-TimeStamp): Valadting the mailbox exists in MS365."
+        $ValidateMailbox = Get-Mailbox -Identity $Microsoft365Users -ErrorAction SilentlyContinue
+
+        if ($ValidateMailbox) {
+            Write-Host "The Mailbox was found."
+            LogWrite "$(Get-TimeStamp): The Mailbox was found."
+            break
+        } else {
+            Write-Host "The Mailbox was not found."
+            LogWrite "$(Get-TimeStamp): Retried mailbox address not found."
+        }
+
+        $retryCount++
+    } while ($retryCount -le $retryLimit)
+
+    if ($retryCount -gt $retryLimit) {
+        LogWrite "$(Get-TimeStamp): Maxium retries has been met, exiting script."
+        Write-Host "Maxium amount of retries atempted. The script is exiting..."
+        Exit
+    }
+}
  
 LogWrite "$(Get-TimeStamp): Collecting data from Microsoft365."
 #Retrives the Mailbox and GUID
 LogWrite "$(Get-TimeStamp): Collecting Mailbox."
-$Mailbox = Get-Mailbox $Microsoft365Users
+$Mailbox = Get-Mailbox -Identity $Microsoft365Users
 LogWrite "$(Get-TimeStamp): Data Collected: $Microsoft365Users."
 
 LogWrite "$(Get-TimeStamp): Collecting Mailbox Alias."
@@ -93,18 +131,56 @@ LogWrite "$(Get-TimeStamp): Data Collected: $MSGUID."
 LogWrite "$(Get-TimeStamp): Upfront connection to Exchange Server."
 #Conenction to Exchange Server
 $LocalSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "http://$HybridServer/PowerShell/" `
-      -Authentication Kerberos -Credential $(Get-Credential)
-Import-PSSession $LocalSession -CommandName Enable-RemoteMailbox, Set-RemoteMailbox
+      -Authentication Kerberos -Credential $(Get-Credential -Message "Enter your Exchange Server credentials:")
+Import-PSSession $LocalSession  -CommandName Enable-RemoteMailbox, Set-RemoteMailbox, Get-User
+
+LogWrite "$(Get-TimeStamp): Collecting data from Active Directory."
+$ValidateRemote = Get-User -Identity $ADUserUPN -ErrorAction SilentlyContinue
+
+$retryRemtoeLimit = 3
+$retryRemoteCount = 0
+
+LogWrite "$(Get-TimeStamp): Valadting the mailbox exists in MS365."
+if ($ValidateRemote.UserPrincipalName -ne $ADUserUPN) {
+    do {
+        if ($retryRemoteCount -gt 0) {
+            LogWrite "$(Get-TimeStamp): The user account supplied was invalid."
+            Write-Host "The user entered was invalid, request to retry being captured."
+        }
+
+        LogWrite "$(Get-TimeStamp): Requesting upn address is retyped."
+        $ADUserUPN = Read-Host "Retype the UPN of the user"
+        LogWrite "$(Get-TimeStamp): Valadting the user exists."
+        $ValidateRemote = Get-User -Identity $ADUserUPN -ErrorAction SilentlyContinue
+
+        if ($ValidateRemote) {
+            Write-Host "The user was found."
+            LogWrite "$(Get-TimeStamp): The user was found."
+            break
+        } else {
+            Write-Host "The user was not found."
+            LogWrite "$(Get-TimeStamp): Retried user address not found."
+        }
+
+        $retryRemoteCount++
+    } while ($retryRemoteCount -le $retryRemtoeLimit)
+
+    if ($retryRemoteCount -gt $retryRemtoeLimit) {
+        LogWrite "$(Get-TimeStamp): Maxium retries has been met, exiting script."
+        Write-Host "Maxium amount of retries atempted. The script is exiting..."
+        Exit
+    }
+}
  
 LogWrite "$(Get-TimeStamp): Creating Remote Mailbox on Exchange."
 #Creates a Remote Mailbox
 if ($userIsShared -eq "yes") {
     LogWrite "$(Get-TimeStamp): Shared Mailbox requested, creating the mailbox."
-    Enable-RemoteMailbox -Shared $ADUserUPN -Alias $Alias -RemoteRoutingAddress "$Alias@$RoutingDomain"
+    Enable-RemoteMailbox -Identity $ADUserUPN -Alias $Alias -RemoteRoutingAddress "$Alias@$RoutingDomain" -Shared
     LogWrite "$(Get-TimeStamp): Remote Mailbox Created."
 } else {
     LogWrite "$(Get-TimeStamp): User Mailbox requested, creating the mailbox."
-    Enable-RemoteMailbox $ADUserUPN -Alias $Alias -RemoteRoutingAddress "$Alias@$RoutingDomain"
+    Enable-RemoteMailbox -Identity $ADUserUPN -Alias $Alias -RemoteRoutingAddress "$Alias@$RoutingDomain"
     LogWrite "$(Get-TimeStamp): Remote Mailbox Created."
 }
 
@@ -118,5 +194,5 @@ LogWrite "$(Get-TimeStamp): Script ending, powershell closing..."
 Get-PSSession | Remove-PSSession
 
 #Terminates the Script
-Read-Host -Prompt “Press Enter to exit”
+Read-Host -Prompt "Press Enter to exit"
 Exit
